@@ -141,11 +141,11 @@ func requestAttributes(info RequestInfo) []attribute.KeyValue {
 func responseAttributes(info ResponseInfo) []attribute.KeyValue {
 	const maxResponseAttrs = 8
 	attrs := make([]attribute.KeyValue, 0, maxResponseAttrs)
-	if info.ID != "" {
-		attrs = append(attrs, GenAIResponseID(info.ID))
+	if info.ID != nil {
+		attrs = append(attrs, GenAIResponseID(*info.ID))
 	}
-	if info.Model != "" {
-		attrs = append(attrs, GenAIResponseModel(info.Model))
+	if info.Model != nil {
+		attrs = append(attrs, GenAIResponseModel(*info.Model))
 	}
 	if info.FinishReasons != nil {
 		attrs = append(attrs, GenAIResponseFinishReasons(info.FinishReasons))

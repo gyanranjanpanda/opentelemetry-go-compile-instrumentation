@@ -79,9 +79,13 @@ func (s stubAdapter) ParseResponse(call Call) (ResponseInfo, error) {
 		return ResponseInfo{}, err
 	}
 	info := ResponseInfo{
-		ID:    body.ID,
-		Model: body.Model,
 		Usage: Usage{InputTokens: body.In, OutputTokens: body.Out, TotalTokens: body.Total},
+	}
+	if body.ID != "" {
+		info.ID = String(body.ID)
+	}
+	if body.Model != "" {
+		info.Model = String(body.Model)
 	}
 	// Embeddings has no finish-reason concept, so the slice stays nil and the
 	// core emits no attribute for it. Chat always reports the field, even
@@ -111,10 +115,10 @@ func (s stubStreamAdapter) ParseStreamChunk(payload []byte, acc *ResponseInfo) {
 		return
 	}
 	if body.ID != "" {
-		acc.ID = body.ID
+		acc.ID = String(body.ID)
 	}
 	if body.Model != "" {
-		acc.Model = body.Model
+		acc.Model = String(body.Model)
 	}
 	if body.In != nil {
 		acc.Usage.InputTokens = body.In

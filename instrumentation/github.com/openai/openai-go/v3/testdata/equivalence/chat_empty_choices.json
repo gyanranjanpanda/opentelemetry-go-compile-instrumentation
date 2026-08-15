@@ -1,0 +1,169 @@
+{
+  "spans": [
+    {
+      "name": "chat gpt-4",
+      "kind": "client",
+      "scope": "go.opentelemetry.io/otelc/instrumentation/github.com/openai/openai-go/v3",
+      "status_code": "Unset",
+      "status_description": "",
+      "attributes": [
+        {
+          "key": "gen_ai.operation.name",
+          "type": "STRING",
+          "value": "chat"
+        },
+        {
+          "key": "gen_ai.provider.name",
+          "type": "STRING",
+          "value": "openai"
+        },
+        {
+          "key": "gen_ai.request.model",
+          "type": "STRING",
+          "value": "gpt-4"
+        },
+        {
+          "key": "gen_ai.response.finish_reasons",
+          "type": "STRINGSLICE",
+          "value": []
+        },
+        {
+          "key": "gen_ai.response.id",
+          "type": "STRING",
+          "value": "chatcmpl-empty"
+        },
+        {
+          "key": "gen_ai.response.model",
+          "type": "STRING",
+          "value": "gpt-4"
+        },
+        {
+          "key": "gen_ai.system",
+          "type": "STRING",
+          "value": "openai"
+        },
+        {
+          "key": "gen_ai.usage.input_tokens",
+          "type": "INT64",
+          "value": 1
+        },
+        {
+          "key": "gen_ai.usage.output_tokens",
+          "type": "INT64",
+          "value": 1
+        },
+        {
+          "key": "gen_ai.usage.total_tokens",
+          "type": "INT64",
+          "value": 2
+        }
+      ],
+      "events": []
+    }
+  ],
+  "metrics": [
+    {
+      "name": "gen_ai.client.operation.duration",
+      "description": "Duration of GenAI client operations.",
+      "unit": "s",
+      "scope": "go.opentelemetry.io/otelc/instrumentation/github.com/openai/openai-go/v3",
+      "data_points": [
+        {
+          "attributes": [
+            {
+              "key": "gen_ai.operation.name",
+              "type": "STRING",
+              "value": "chat"
+            },
+            {
+              "key": "gen_ai.provider.name",
+              "type": "STRING",
+              "value": "openai"
+            },
+            {
+              "key": "gen_ai.request.model",
+              "type": "STRING",
+              "value": "gpt-4"
+            },
+            {
+              "key": "gen_ai.system",
+              "type": "STRING",
+              "value": "openai"
+            }
+          ],
+          "count": 1
+        }
+      ]
+    },
+    {
+      "name": "gen_ai.client.token.usage",
+      "description": "Number of input and output tokens used by GenAI client operations.",
+      "unit": "{token}",
+      "scope": "go.opentelemetry.io/otelc/instrumentation/github.com/openai/openai-go/v3",
+      "data_points": [
+        {
+          "attributes": [
+            {
+              "key": "gen_ai.operation.name",
+              "type": "STRING",
+              "value": "chat"
+            },
+            {
+              "key": "gen_ai.provider.name",
+              "type": "STRING",
+              "value": "openai"
+            },
+            {
+              "key": "gen_ai.request.model",
+              "type": "STRING",
+              "value": "gpt-4"
+            },
+            {
+              "key": "gen_ai.system",
+              "type": "STRING",
+              "value": "openai"
+            },
+            {
+              "key": "gen_ai.token.type",
+              "type": "STRING",
+              "value": "input"
+            }
+          ],
+          "count": 1,
+          "sum": 1
+        },
+        {
+          "attributes": [
+            {
+              "key": "gen_ai.operation.name",
+              "type": "STRING",
+              "value": "chat"
+            },
+            {
+              "key": "gen_ai.provider.name",
+              "type": "STRING",
+              "value": "openai"
+            },
+            {
+              "key": "gen_ai.request.model",
+              "type": "STRING",
+              "value": "gpt-4"
+            },
+            {
+              "key": "gen_ai.system",
+              "type": "STRING",
+              "value": "openai"
+            },
+            {
+              "key": "gen_ai.token.type",
+              "type": "STRING",
+              "value": "output"
+            }
+          ],
+          "count": 1,
+          "sum": 1
+        }
+      ]
+    }
+  ]
+}

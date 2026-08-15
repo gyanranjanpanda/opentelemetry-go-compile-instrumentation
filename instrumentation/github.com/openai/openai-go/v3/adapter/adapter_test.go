@@ -141,8 +141,8 @@ func TestParseResponse_Chat(t *testing.T) {
 	info, err := New().ParseResponse(genai.Call{Op: genai.OperationChat, Body: body})
 	require.NoError(t, err)
 
-	assert.Equal(t, "chatcmpl-123", info.ID)
-	assert.Equal(t, "gpt-4", info.Model)
+	assert.Equal(t, "chatcmpl-123", *info.ID)
+	assert.Equal(t, "gpt-4", *info.Model)
 	assert.Equal(t, []string{"stop"}, info.FinishReasons)
 	assert.Equal(t, int64(10), *info.Usage.InputTokens)
 	assert.Equal(t, int64(20), *info.Usage.OutputTokens)
@@ -173,10 +173,10 @@ func TestParseResponse_EmbeddingsOmitsWhatItHasNo(t *testing.T) {
 	info, err := New().ParseResponse(genai.Call{Op: genai.OperationEmbeddings, Body: body})
 	require.NoError(t, err)
 
-	assert.Equal(t, "text-embedding-ada-002", info.Model)
+	assert.Equal(t, "text-embedding-ada-002", *info.Model)
 	assert.Equal(t, int64(2), *info.Usage.InputTokens)
 	assert.Equal(t, int64(2), *info.Usage.TotalTokens)
-	assert.Empty(t, info.ID)
+	assert.Nil(t, info.ID, "embeddings has no response id, so the attribute is not emitted at all")
 	assert.Nil(t, info.FinishReasons)
 	assert.Nil(t, info.Usage.OutputTokens)
 }
@@ -192,14 +192,14 @@ func TestParseStreamChunk(t *testing.T) {
 
 	a.ParseStreamChunk([]byte(`{"id":"chatcmpl-stream","model":"gpt-4",`+
 		`"choices":[{"delta":{"content":"Hello"},"finish_reason":null}]}`), &acc)
-	assert.Equal(t, "chatcmpl-stream", acc.ID)
+	assert.Equal(t, "chatcmpl-stream", *acc.ID)
 	assert.Nil(t, acc.Usage.TotalTokens, "no usage in the first chunk")
 
 	a.ParseStreamChunk([]byte(`{"id":"chatcmpl-stream","model":"gpt-4",`+
 		`"choices":[{"delta":{"content":" world"},"finish_reason":"stop"}],`+
 		`"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}`), &acc)
 
-	assert.Equal(t, "gpt-4", acc.Model)
+	assert.Equal(t, "gpt-4", *acc.Model)
 	assert.Equal(t, []string{"stop"}, acc.FinishReasons)
 	assert.Equal(t, int64(5), *acc.Usage.InputTokens)
 	assert.Equal(t, int64(2), *acc.Usage.OutputTokens)
@@ -217,13 +217,13 @@ func TestParseStreamChunk_LaterChunksDoNotZeroUsage(t *testing.T) {
 	a.ParseStreamChunk([]byte(`{"id":"chatcmpl-stream","choices":[]}`), &acc)
 
 	assert.Equal(t, int64(7), *acc.Usage.TotalTokens)
-	assert.Equal(t, "chatcmpl-stream", acc.ID)
+	assert.Equal(t, "chatcmpl-stream", *acc.ID)
 }
 
 func TestParseStreamChunk_InvalidJSONIsIgnored(t *testing.T) {
-	acc := genai.ResponseInfo{ID: "kept"}
+	acc := genai.ResponseInfo{ID: genai.String("kept")}
 	New().ParseStreamChunk([]byte("not json"), &acc)
-	assert.Equal(t, "kept", acc.ID)
+	assert.Equal(t, "kept", *acc.ID)
 }
 
 func TestProvider(t *testing.T) {

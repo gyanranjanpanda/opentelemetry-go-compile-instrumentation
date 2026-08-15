@@ -96,11 +96,11 @@ func (r *streamReader) finalize(flush bool) {
 		GenAIUsageOutputTokens(derefInt64(r.acc.Usage.OutputTokens)),
 		GenAIUsageTotalTokens(derefInt64(r.acc.Usage.TotalTokens)),
 	)
-	if r.acc.ID != "" {
-		span.SetAttributes(GenAIResponseID(r.acc.ID))
+	if r.acc.ID != nil {
+		span.SetAttributes(GenAIResponseID(*r.acc.ID))
 	}
-	if r.acc.Model != "" {
-		span.SetAttributes(GenAIResponseModel(r.acc.Model))
+	if r.acc.Model != nil {
+		span.SetAttributes(GenAIResponseModel(*r.acc.Model))
 	}
 	if !r.first.IsZero() {
 		firstTokenUs := r.first.Sub(r.state.start).Microseconds()

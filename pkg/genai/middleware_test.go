@@ -372,7 +372,7 @@ func TestHTTPMiddleware_Extensions(t *testing.T) {
 			a := stubAdapter{
 				provider: "stub",
 				parseResp: func(Call) (ResponseInfo, error) {
-					return ResponseInfo{ID: "r-1", Ext: tt.ext}, nil
+					return ResponseInfo{ID: String("r-1"), Ext: tt.ext}, nil
 				},
 			}
 			mw, rec := newTestMiddleware(t, a)

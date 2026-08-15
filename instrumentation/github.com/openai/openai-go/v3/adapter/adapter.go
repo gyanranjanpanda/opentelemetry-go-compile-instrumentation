@@ -211,8 +211,12 @@ func parseCompletionResponse(body []byte) (genai.ResponseInfo, error) {
 	}
 
 	return genai.ResponseInfo{
-		ID:            resp.ID,
-		Model:         resp.Model,
+		// Always set, empty string included: chat and text completion report
+		// an id and a model as concepts, so the attributes are always emitted
+		// even when the provider left the fields blank. genai.String("") and a
+		// nil pointer are deliberately different things.
+		ID:            genai.String(resp.ID),
+		Model:         genai.String(resp.Model),
 		FinishReasons: reasons,
 		// All three counts are always reported for these operations, zero
 		// included, so all three pointers are always set.
@@ -234,7 +238,7 @@ func parseEmbeddingResponse(body []byte) (genai.ResponseInfo, error) {
 	// Leaving them unset is what stops the core emitting empty or zero-valued
 	// attributes the previous middleware never produced.
 	return genai.ResponseInfo{
-		Model: resp.Model,
+		Model: genai.String(resp.Model),
 		Usage: genai.Usage{
 			InputTokens: genai.Int64(resp.Usage.PromptTokens),
 			TotalTokens: genai.Int64(resp.Usage.TotalTokens),
@@ -270,10 +274,10 @@ func (Adapter) ParseStreamChunk(payload []byte, acc *genai.ResponseInfo) {
 	}
 
 	if chunk.ID != "" {
-		acc.ID = chunk.ID
+		acc.ID = genai.String(chunk.ID)
 	}
 	if chunk.Model != "" {
-		acc.Model = chunk.Model
+		acc.Model = genai.String(chunk.Model)
 	}
 	if chunk.Usage.PromptTokens > 0 {
 		acc.Usage.InputTokens = genai.Int64(chunk.Usage.PromptTokens)

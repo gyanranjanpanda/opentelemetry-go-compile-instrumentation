@@ -103,13 +103,15 @@ type Usage struct {
 
 // ResponseInfo is what an adapter can read out of a response body.
 //
-// Presence is the adapter's to declare. ID and Model are emitted when
-// non-empty; FinishReasons is emitted when non-nil, so an adapter signals "this
-// operation reports finish reasons, and there were none" with an empty non-nil
-// slice and "this operation has no such concept" with nil.
+// Presence is the adapter's to declare, and the rule is uniform: the core
+// emits exactly what the adapter set. Optional scalars are pointers, so an
+// adapter can distinguish "the provider reported an empty id" from "this
+// operation has no id"; slices use nil for the same distinction, so "reports
+// finish reasons, and there were none" is an empty non-nil slice while "has no
+// such concept" is nil.
 type ResponseInfo struct {
-	ID            string
-	Model         string
+	ID            *string
+	Model         *string
 	FinishReasons []string
 	Usage         Usage
 
@@ -185,3 +187,8 @@ func Int64(v int64) *int64 { return &v }
 // Float64 returns a pointer to v, for populating the optional fields of
 // [RequestInfo].
 func Float64(v float64) *float64 { return &v }
+
+// String returns a pointer to v, for populating the optional fields of
+// [ResponseInfo]. Note that String("") is not the same as leaving the field
+// nil: the first reports an empty value, the second reports no value.
+func String(v string) *string { return &v }

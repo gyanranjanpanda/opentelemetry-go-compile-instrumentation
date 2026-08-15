@@ -294,6 +294,30 @@ func equivalenceScenarios() []scenario {
 					`"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}`),
 		},
 		{
+			// A 200 chat response whose choices list is empty. The finish
+			// reasons attribute is still emitted, as an empty list: the
+			// operation reports finish reasons as a concept even when there
+			// are none. Distinguishing that from "this operation has no such
+			// concept" is the whole of the presence rule, and nothing else in
+			// this file exercises it.
+			name:    "chat_empty_choices",
+			request: postRequest("http://api.openai.com/v1/chat/completions", `{"model":"gpt-4"}`),
+			next: jsonResponse(
+				`{"id":"chatcmpl-empty","model":"gpt-4","choices":[],` +
+					`"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`),
+		},
+		{
+			// A 200 chat response carrying neither id nor model. Whatever the
+			// instrumentation does here -- emit the attributes empty, or omit
+			// them -- it should be a decision on the record rather than an
+			// accident nothing covers.
+			name:    "chat_response_without_id_or_model",
+			request: postRequest("http://api.openai.com/v1/chat/completions", `{"model":"gpt-4"}`),
+			next: jsonResponse(
+				`{"choices":[{"finish_reason":"stop"}],` +
+					`"usage":{"prompt_tokens":4,"completion_tokens":6,"total_tokens":10}}`),
+		},
+		{
 			name: "text_completion",
 			request: postRequest("http://api.openai.com/v1/completions",
 				`{"model":"gpt-3.5-turbo-instruct","max_tokens":50,"temperature":0.5}`),
