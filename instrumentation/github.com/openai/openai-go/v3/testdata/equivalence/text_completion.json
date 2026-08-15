@@ -1,0 +1,77 @@
+{
+  "spans": [
+    {
+      "name": "text_completion gpt-3.5-turbo-instruct",
+      "kind": "client",
+      "scope": "go.opentelemetry.io/otelc/instrumentation/github.com/openai/openai-go/v3",
+      "status_code": "Unset",
+      "status_description": "",
+      "attributes": [
+        {
+          "key": "gen_ai.operation.name",
+          "type": "STRING",
+          "value": "text_completion"
+        },
+        {
+          "key": "gen_ai.provider.name",
+          "type": "STRING",
+          "value": "openai"
+        },
+        {
+          "key": "gen_ai.request.max_tokens",
+          "type": "INT64",
+          "value": 50
+        },
+        {
+          "key": "gen_ai.request.model",
+          "type": "STRING",
+          "value": "gpt-3.5-turbo-instruct"
+        },
+        {
+          "key": "gen_ai.request.temperature",
+          "type": "FLOAT64",
+          "value": 0.5
+        },
+        {
+          "key": "gen_ai.response.finish_reasons",
+          "type": "STRINGSLICE",
+          "value": [
+            "length"
+          ]
+        },
+        {
+          "key": "gen_ai.response.id",
+          "type": "STRING",
+          "value": "cmpl-456"
+        },
+        {
+          "key": "gen_ai.response.model",
+          "type": "STRING",
+          "value": "gpt-3.5-turbo-instruct"
+        },
+        {
+          "key": "gen_ai.system",
+          "type": "STRING",
+          "value": "openai"
+        },
+        {
+          "key": "gen_ai.usage.input_tokens",
+          "type": "INT64",
+          "value": 5
+        },
+        {
+          "key": "gen_ai.usage.output_tokens",
+          "type": "INT64",
+          "value": 50
+        },
+        {
+          "key": "gen_ai.usage.total_tokens",
+          "type": "INT64",
+          "value": 55
+        }
+      ],
+      "events": []
+    }
+  ],
+  "metrics": []
+}

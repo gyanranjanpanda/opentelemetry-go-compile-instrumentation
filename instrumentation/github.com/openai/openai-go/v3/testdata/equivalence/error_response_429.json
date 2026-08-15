@@ -1,0 +1,56 @@
+{
+  "spans": [
+    {
+      "name": "chat gpt-4",
+      "kind": "client",
+      "scope": "go.opentelemetry.io/otelc/instrumentation/github.com/openai/openai-go/v3",
+      "status_code": "Error",
+      "status_description": "429 Too Many Requests",
+      "attributes": [
+        {
+          "key": "error.type",
+          "type": "STRING",
+          "value": "429"
+        },
+        {
+          "key": "gen_ai.operation.name",
+          "type": "STRING",
+          "value": "chat"
+        },
+        {
+          "key": "gen_ai.provider.name",
+          "type": "STRING",
+          "value": "openai"
+        },
+        {
+          "key": "gen_ai.request.model",
+          "type": "STRING",
+          "value": "gpt-4"
+        },
+        {
+          "key": "gen_ai.system",
+          "type": "STRING",
+          "value": "openai"
+        }
+      ],
+      "events": [
+        {
+          "name": "exception",
+          "attributes": [
+            {
+              "key": "exception.message",
+              "type": "STRING",
+              "value": "429 Too Many Requests"
+            },
+            {
+              "key": "exception.type",
+              "type": "STRING",
+              "value": "*errors.errorString"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metrics": []
+}

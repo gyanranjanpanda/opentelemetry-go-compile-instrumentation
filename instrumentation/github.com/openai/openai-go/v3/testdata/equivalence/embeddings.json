@@ -1,0 +1,50 @@
+{
+  "spans": [
+    {
+      "name": "embeddings text-embedding-ada-002",
+      "kind": "client",
+      "scope": "go.opentelemetry.io/otelc/instrumentation/github.com/openai/openai-go/v3",
+      "status_code": "Unset",
+      "status_description": "",
+      "attributes": [
+        {
+          "key": "gen_ai.operation.name",
+          "type": "STRING",
+          "value": "embeddings"
+        },
+        {
+          "key": "gen_ai.provider.name",
+          "type": "STRING",
+          "value": "openai"
+        },
+        {
+          "key": "gen_ai.request.model",
+          "type": "STRING",
+          "value": "text-embedding-ada-002"
+        },
+        {
+          "key": "gen_ai.response.model",
+          "type": "STRING",
+          "value": "text-embedding-ada-002"
+        },
+        {
+          "key": "gen_ai.system",
+          "type": "STRING",
+          "value": "openai"
+        },
+        {
+          "key": "gen_ai.usage.input_tokens",
+          "type": "INT64",
+          "value": 2
+        },
+        {
+          "key": "gen_ai.usage.total_tokens",
+          "type": "INT64",
+          "value": 2
+        }
+      ],
+      "events": []
+    }
+  ],
+  "metrics": []
+}
