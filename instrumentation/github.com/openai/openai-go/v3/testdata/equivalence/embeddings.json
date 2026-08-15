@@ -46,5 +46,78 @@
       "events": []
     }
   ],
-  "metrics": []
+  "metrics": [
+    {
+      "name": "gen_ai.client.operation.duration",
+      "description": "Duration of GenAI client operations.",
+      "unit": "s",
+      "scope": "go.opentelemetry.io/otelc/instrumentation/github.com/openai/openai-go/v3",
+      "data_points": [
+        {
+          "attributes": [
+            {
+              "key": "gen_ai.operation.name",
+              "type": "STRING",
+              "value": "embeddings"
+            },
+            {
+              "key": "gen_ai.provider.name",
+              "type": "STRING",
+              "value": "openai"
+            },
+            {
+              "key": "gen_ai.request.model",
+              "type": "STRING",
+              "value": "text-embedding-ada-002"
+            },
+            {
+              "key": "gen_ai.system",
+              "type": "STRING",
+              "value": "openai"
+            }
+          ],
+          "count": 1
+        }
+      ]
+    },
+    {
+      "name": "gen_ai.client.token.usage",
+      "description": "Number of input and output tokens used by GenAI client operations.",
+      "unit": "{token}",
+      "scope": "go.opentelemetry.io/otelc/instrumentation/github.com/openai/openai-go/v3",
+      "data_points": [
+        {
+          "attributes": [
+            {
+              "key": "gen_ai.operation.name",
+              "type": "STRING",
+              "value": "embeddings"
+            },
+            {
+              "key": "gen_ai.provider.name",
+              "type": "STRING",
+              "value": "openai"
+            },
+            {
+              "key": "gen_ai.request.model",
+              "type": "STRING",
+              "value": "text-embedding-ada-002"
+            },
+            {
+              "key": "gen_ai.system",
+              "type": "STRING",
+              "value": "openai"
+            },
+            {
+              "key": "gen_ai.token.type",
+              "type": "STRING",
+              "value": "input"
+            }
+          ],
+          "count": 1,
+          "sum": 2
+        }
+      ]
+    }
+  ]
 }
