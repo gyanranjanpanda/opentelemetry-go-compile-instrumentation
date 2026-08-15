@@ -453,6 +453,19 @@ biggest open question in the design.
 
 ## 7. Reproducing
 
+Everything below was last run against a **fresh clone of this branch**, not a working directory, so
+nothing here depends on uncommitted state:
+
+```sh
+git clone --branch prototype/genai-adapter <repo> /tmp/coldcheck && cd /tmp/coldcheck
+make build/pkg      # discovers pkg/genai via `find pkg -name go.mod`; no Makefile change needed
+(cd pkg/genai && go test ./...)
+(cd instrumentation/github.com/openai/openai-go/v3 && go test ./...)
+```
+
+`make build/pkg` runs `go mod tidy` in each module and leaves the tree clean, so the committed
+`go.mod`/`go.sum` are already tidy.
+
 ```sh
 # core
 cd pkg/genai && go test ./...
@@ -502,15 +515,19 @@ confirm it notices — these are the two from §3.1, and both should fail:
 
 ```sh
 cd instrumentation/github.com/openai/openai-go/v3
-cp adapter/adapter.go /tmp/adapter.bak      # NOT git checkout: the baseline may be uncommitted
+cp adapter/adapter.go /tmp/adapter.bak   # NOT git checkout: the baseline may be uncommitted
 
 # 1. nil instead of empty slice -> chat_empty_choices/spans must FAIL
-sed -i '' 's/reasons := \[\]string{}/var reasons []string/' adapter/adapter.go
-go test -run TestGenAIEquivalence . -v 2>&1 | grep FAIL
+#    (perl -pi, not sed -i: "sed -i ''" is a BSD-ism that breaks on GNU sed)
+perl -pi -e 's/reasons := \[\]string\{\}/var reasons []string/' adapter/adapter.go
+go test -run TestGenAIEquivalence . -v 2>&1 | grep -E '^\s+--- FAIL'
 cp /tmp/adapter.bak adapter/adapter.go
 
 # 2. drop an empty response id -> chat_response_without_id_or_model/spans must FAIL
-#    (edit parseCompletionResponse so ID is nil when resp.ID == "")
+perl -pi -e 's/ID:            genai\.String\(resp\.ID\),/ID: func() *string { if resp.ID == "" { return nil }; return \&resp.ID }(),/' adapter/adapter.go
+gofmt -w adapter/adapter.go
+go test -run TestGenAIEquivalence . -v 2>&1 | grep -E '^\s+--- FAIL'
+cp /tmp/adapter.bak adapter/adapter.go
 ```
 
 ### Checking the report's claims
