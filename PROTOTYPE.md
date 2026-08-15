@@ -4,17 +4,22 @@ A prototype for an LFX Mentorship proposal: a shared `pkg/genai` core that owns 
 lifecycle, attribute assembly, metrics and streaming, with each provider implementing a narrow
 adapter interface that knows nothing about OpenTelemetry.
 
-Branch `prototype/genai-adapter`. Three commits, in this order:
+Branch `prototype/genai-adapter`. The first three commits are in a deliberate order:
 
 | commit | what |
 | --- | --- |
 | `f94d9d9` | `pkg/genai` — the shared core and adapter contract |
 | `73e50b4` | equivalence harness + golden data, recorded from the **unmodified** v3 module |
 | `49388f5` | `openai-go/v3` migrated onto the core |
+| `2abdac5` | contract fix + two more scenarios, after falsifying the harness (§3.1) |
 
-The order is the point. The harness was written and committed against the existing implementation,
-so its golden data encodes what otelc does today. Written after the migration it would have encoded
-what the shared core happens to do and passed by construction.
+The order of the first three is the point. The harness was written and committed against the
+existing implementation, so its golden data encodes what otelc does today. Written after the
+migration it would have encoded what the shared core happens to do and passed by construction.
+
+The fourth commit is the more honest part of the story: the harness was checked by trying to break
+it, turned out to have a real hole, and closed it — which exposed a defect in the adapter contract
+itself. §3.1 is the account.
 
 Not for upstream merge. `openai-go` v1, v2 and `anthropic-sdk-go` are untouched.
 
@@ -87,8 +92,8 @@ Measured for the `openai-go/v3` module across `73e50b4..49388f5`.
 | `semconv/genai.go` | 96 | **0** | deleted; one shared copy in the core |
 | `streaming_bridge.go` | 34 | **0** | deleted; streaming is core-side |
 | `hook.go` | 56 | 56 | **unchanged** |
-| `adapter/adapter.go` | — | 292 | new: all the OpenAI-specific parsing |
-| **non-test total** | **572** | **380** | **−192 (−34%)** |
+| `adapter/adapter.go` | — | 296 | new: all the OpenAI-specific parsing |
+| **non-test total** | **572** | **384** | **−188 (−33%)** |
 
 | | before | after | |
 | --- | ---: | ---: | --- |
@@ -100,8 +105,8 @@ Measured for the `openai-go/v3` module across `73e50b4..49388f5`.
 | `adapter/adapter_test.go` | — | 231 | new |
 | **test total** | **884** | **872** | **−12** |
 
-The −34% understates the real saving, because a per-version module is now mostly `hook.go` plus a
-292-line adapter — and the adapter is the part that actually differs between providers. The
+The −33% understates the real saving, because a per-version module is now mostly `hook.go` plus a
+296-line adapter — and the adapter is the part that actually differs between providers. The
 **cross-version** saving is what matters: migrating v1 and v2 the same way would delete another
 **~1144 non-test lines** and **~1768 test lines**, since those copies become the same 32-line
 `middleware.go` plus an import of the *same* adapter package rather than three copies of it.
@@ -110,27 +115,30 @@ The −34% understates the real saving, because a per-version module is now most
 
 | | lines |
 | --- | ---: |
-| `pkg/genai` non-test | 1034 |
-| `pkg/genai` tests | 931 |
-| harness (`equivalence_harness_test.go`) | 474 |
-| golden data (8 JSON files) | 1036 |
+| `pkg/genai` non-test | 1041 |
+| `pkg/genai` tests | 935 |
+| harness (`equivalence_harness_test.go`) | 498 |
+| golden data (10 JSON files) | 1376 |
 
 The core is larger than any single copy it replaces, because it does strictly more: two metrics
 OpenAI never had, an extension mechanism, and the presence rules that let one code path serve
-operations with different attribute sets. It is not a like-for-like 386→1034 comparison.
+operations with different attribute sets. It is not a like-for-like 386→1041 comparison.
 
-**Test totals:** 44 passing in `pkg/genai`, 73 in the v3 module (including the harness).
+**Test totals:** 44 passing in `pkg/genai`, 79 in the v3 module (including the harness).
 
 ---
 
 ## 3. Harness result
 
-Eight scenarios, each asserted in two independent sections. Spans are compared **attribute for
+Ten scenarios, each asserted in two independent sections. Spans are compared **attribute for
 attribute** — name, kind, instrumentation scope, status code, status description, every attribute
-key/type/value, and every event — against golden data frozen before the migration.
+key/type/value, and every event — against golden data recorded from the pre-migration
+implementation.
 
 ```
 --- PASS: TestGenAIEquivalence/unary_chat_completion/spans
+--- PASS: TestGenAIEquivalence/chat_empty_choices/spans
+--- PASS: TestGenAIEquivalence/chat_response_without_id_or_model/spans
 --- PASS: TestGenAIEquivalence/text_completion/spans
 --- PASS: TestGenAIEquivalence/embeddings/spans
 --- PASS: TestGenAIEquivalence/error_response_429/spans
@@ -140,19 +148,25 @@ key/type/value, and every event — against golden data frozen before the migrat
 --- PASS: TestGenAIEquivalence/untraced_unknown_operation/spans
 ```
 
-**8/8 span sections pass. Zero span attributes changed.** Verified mechanically: re-parsing every
-golden file across the migration commit shows `spans_changed=False` for all eight.
+**10/10 span sections pass. Zero span attributes changed.** Verified mechanically: re-parsing every
+golden file across the migration commit shows `spans_changed=False`.
+
+The last two scenarios were added *after* the migration and are the more interesting half of this
+section — see §3.1. Their golden data was still recorded from the pre-migration code, in a
+`git worktree` checked out at `73e50b4`, so the ordering property holds for them too.
 
 `middleware_integration_test.go` — the module's pre-existing behavioural spec, 546 lines — passes
 **unmodified**.
 
 ### The metric delta, recorded as deliberate
 
-Before the migration all eight metric sections were empty. After, seven scenarios gained metrics:
+Before the migration all ten metric sections were empty. After, nine scenarios gained metrics:
 
 | scenario | `operation.duration` | `token.usage` |
 | --- | --- | --- |
 | unary chat | 1 point | 2 points (input=10, output=20) |
+| chat, empty choices | 1 point | 2 points (input=1, output=1) |
+| chat, no id/model | 1 point | 2 points (input=4, output=6) |
 | text completion | 1 point | 2 points (input=5, output=50) |
 | embeddings | 1 point | **1 point** (input=2 only) |
 | 429 error | 1 point | — |
@@ -179,6 +193,69 @@ Three of those rows are load-bearing evidence rather than filler:
 Metric scope is `go.opentelemetry.io/otelc/instrumentation/github.com/openai/openai-go/v3` — the
 module's own scope, not the core's — so per-instrumentation attribution survives the move.
 
+### 3.1 The harness was not good enough, and how that was found
+
+The first version of this harness had eight scenarios and passed 16/16. It was also **wrong**, in a
+way worth recording because it is the most transferable lesson here.
+
+The check that exposed it was falsification: deliberately break the adapter and confirm the harness
+notices. Two sabotages were tried.
+
+**Sabotage 1** — make `parseEmbeddingResponse` report an output-token count it never had
+(`OutputTokens: genai.Int64(0)`). The harness failed loudly, on both the spans *and* the metrics
+section. Good.
+
+**Sabotage 2** — replace `reasons := []string{}` with `var reasons []string` in
+`parseCompletionResponse`. That is the ordinary Go slip, and it is not cosmetic: nil means "this
+operation has no finish-reason concept", so a chat response with `"choices":[]` would silently stop
+emitting `gen_ai.response.finish_reasons`, an attribute the old code always emitted. **The harness
+passed all sixteen sections.** Only the unit test caught it.
+
+The cause was plain once looked for: `grep -c '"choices":\[\]' equivalence_harness_test.go` → `0`.
+No scenario exercised a successful chat response with an empty choices list. The pre-existing
+`middleware_integration_test.go:449` *does* use exactly that body, but asserts only
+`gen_ai.provider.name`, so it missed it too.
+
+Two scenarios were added to close it:
+
+| scenario | what it pins |
+| --- | --- |
+| `chat_empty_choices` | a 200 chat response with `"choices":[]` — nil-vs-empty finish reasons |
+| `chat_response_without_id_or_model` | a 200 chat response carrying neither `id` nor `model` |
+
+Their golden data was recorded from the genuine pre-migration implementation, via
+`git worktree add <dir> 73e50b4`, so the "golden data predates the migration" property survives.
+Recording them against the migrated code would have been worthless.
+
+**The second scenario immediately failed**, and the cause was a defect in the contract rather than
+in the adapter. The old code emits `gen_ai.response.id = ""` and `gen_ai.response.model = ""` when
+the provider omits those fields. `ResponseInfo.ID` was declared `string`, so an adapter had **no way
+to express "reported, and it was empty"** — the core's rule was "emit if non-empty", and the
+information needed to do otherwise never reached it. The fix was to make `ID` and `Model` `*string`,
+matching how `Usage` already worked, and add a `genai.String()` helper. That also *simplified* the
+core: three emission rules ("non-empty for strings, non-nil for pointers, non-nil for slices")
+collapse into one — **emit exactly what the adapter set**.
+
+Both sabotages were then re-run against the widened harness. Both are now caught:
+
+```
+Sabotage: var reasons []string    → FAIL TestGenAIEquivalence/chat_empty_choices/spans
+Sabotage: omit empty response id  → FAIL TestGenAIEquivalence/chat_response_without_id_or_model/spans
+```
+
+Three things to take from this:
+
+1. **A green equivalence harness proves nothing until you have watched it go red.** Sixteen passing
+   sections were hiding a real regression. Falsification, not coverage percentage, is what
+   establishes that a golden-data suite has teeth.
+2. **A prototype's own report is evidence about its author, not just its subject.** The earlier
+   version of this document claimed the empty-`id` difference was found "by reading rather than by
+   testing" and moved on. That was true and insufficient: the right response to noticing a gap in
+   your test suite is to close it, not to document it as a known limitation.
+3. **The gap was in the contract, not the implementation.** The adapter was written correctly and
+   still could not reproduce the old behaviour. That is the strongest single argument in §5 for
+   scrutinising the interface before building four providers against it.
+
 ### What the harness does not cover
 
 Stated plainly, because it bounds the strength of the result above:
@@ -188,11 +265,10 @@ Stated plainly, because it bounds the strength of the result above:
   are dropped (counts are kept). Token-usage sums *are* compared exactly.
 - `exception.stacktrace` is dropped from captured events; `exception.type` and `exception.message`
   are compared exactly.
-- Every recorded success response happens to carry a non-empty `id` and `model`. That hides a real
-  behaviour change — see §5, item 6. **The harness passed on a difference I found only by reading
-  the code.**
 - Scenarios are driven through the middleware directly, not through a woven binary. No end-to-end
   weaving was exercised (see §5, item 9).
+- Coverage is scenario-shaped, so it is only ever as good as the scenario list. §3.1 is the worked
+  example of that limit and how it was closed.
 
 ---
 
@@ -257,10 +333,16 @@ this out loud rather than leave it implicit in the call order.
 **3. The presence rules are load-bearing but unenforced.** Everything in §4 rests on adapter
 authors getting nil-vs-zero and nil-vs-empty right. Nothing in the type system makes them.
 `Usage{}` and `Usage{OutputTokens: genai.Int64(0)}` produce different spans and only one matches
-today's output; the distinction lives in a doc comment. I considered a per-operation attribute
-manifest in the core (rejected: moves provider knowledge back into the core, which is the thing
-being undone) and a `Reported` bitmask (rejected: uglier than pointers, same failure mode). This is
-an unresolved wart, not a solved problem.
+today's output; the distinction lives in a doc comment.
+
+This one is half-fixed. `ResponseInfo.ID` and `.Model` started as plain `string` with an "emit if
+non-empty" rule in the core, which meant an adapter simply **could not** say "the provider reported
+an empty id" — a case the old code emitted and the new one dropped. §3.1 has the full story. They
+are now `*string`, which both closes the hole and collapses three emission rules into one. What
+remains unsolved is enforcement: nothing stops the next adapter author from writing `Usage{}` where
+they meant `Usage{OutputTokens: genai.Int64(0)}`. I considered a per-operation attribute manifest in
+the core (rejected: moves provider knowledge back into the core, which is the thing being undone)
+and a `Reported` bitmask (rejected: uglier than pointers, same failure mode). Still a wart.
 
 **4. Streaming and unary disagree about presence, and I preserved the disagreement.**
 The existing streaming finaliser emits `finish_reasons`, `input_tokens`, `output_tokens` and
@@ -278,12 +360,17 @@ whichever provider loses the coin toss. Any real proposal must say which shape i
 matches the semconv guidance for HTTP status codes) and treat the other provider's change as a
 deliberate, announced break.
 
-**6. A behaviour change the harness did not catch.** The existing chat/completion parser emits
-`gen_ai.response.id` and `gen_ai.response.model` *even when empty*; the core omits the attribute
-instead. Every recorded success scenario carries both fields, so all eight span sections pass. The
-new behaviour is better — an empty-string attribute is noise — but the harness proved nothing about
-it, and I found it by reading rather than by testing. Reported here because it marks the limit of
-what golden-data equivalence buys you.
+**6. The contract could not express "reported, but empty" — and the harness did not catch it.**
+The old chat/completion parser emits `gen_ai.response.id` and `gen_ai.response.model` even when the
+provider omits them. With `ID string` on `ResponseInfo`, no adapter could reproduce that: the core's
+only available rule was "emit if non-empty". The first eight-scenario harness passed anyway, because
+every scenario happened to carry both fields. Found by falsification, fixed by making both fields
+pointers, and now pinned by `chat_response_without_id_or_model`. Full account in §3.1.
+
+Worth separating two judgements here. Emitting `gen_ai.response.id = ""` is *bad telemetry* and the
+new behaviour would be an improvement — but that is a change to make deliberately and announce, not
+one to ship as a silent side effect of a refactor. The contract now supports either choice, which is
+the property that actually matters.
 
 **7. `Ext` lets an adapter carry a fact but not emit one.** The extension mechanism is
 type-switched *in the core*, so adding a provider-specific attribute still means editing
@@ -373,10 +460,75 @@ cd pkg/genai && go test ./...
 # migrated module, including the equivalence harness
 cd instrumentation/github.com/openai/openai-go/v3 && go test ./...
 
-# the harness alone, per-scenario
+# the harness alone, per-scenario (use -v: passing subtests print nothing without it)
 go test -run TestGenAIEquivalence . -v
+```
 
-# confirm the frozen span baseline predates the migration
-git show 73e50b4 --stat -- testdata/equivalence
-git diff 73e50b4 49388f5 -- equivalence_harness_test.go   # empty: the harness never changed
+### Checking that the harness proves what it claims
+
+Two properties carry the whole argument, and both are checkable.
+
+**The golden data predates the migration.**
+
+```sh
+V=instrumentation/github.com/openai/openai-go/v3
+
+git show 73e50b4 --stat -- $V/testdata/equivalence   # 8 goldens added pre-migration
+git diff 73e50b4 49388f5 -- $V/equivalence_harness_test.go   # empty: harness never changed
+
+# no span attribute moved when the implementation swapped underneath it
+python3 - <<'EOF'
+import json, subprocess, os
+b = 'instrumentation/github.com/openai/openai-go/v3/testdata/equivalence'
+for f in sorted(os.listdir(b)):
+    old = subprocess.run(['git','show',f'73e50b4:{b}/{f}'],capture_output=True,text=True).stdout
+    if not old:
+        print(f'{f:40s} (added later, see PROTOTYPE.md 3.1)'); continue
+    print(f'{f:40s} spans_changed={json.loads(old)["spans"] != json.load(open(f"{b}/{f}"))["spans"]}')
+EOF
+```
+
+The two scenarios from §3.1 are absent from `73e50b4` by construction. Their goldens were recorded
+the same way, in a worktree:
+
+```sh
+git worktree add /tmp/pre-migration 73e50b4
+# add the scenario there, run with -update-golden-spans, copy the JSON forward
+git worktree remove /tmp/pre-migration
+```
+
+**The harness has teeth.** Do not trust a green suite you have not seen fail. Break the adapter and
+confirm it notices — these are the two from §3.1, and both should fail:
+
+```sh
+cd instrumentation/github.com/openai/openai-go/v3
+cp adapter/adapter.go /tmp/adapter.bak      # NOT git checkout: the baseline may be uncommitted
+
+# 1. nil instead of empty slice -> chat_empty_choices/spans must FAIL
+sed -i '' 's/reasons := \[\]string{}/var reasons []string/' adapter/adapter.go
+go test -run TestGenAIEquivalence . -v 2>&1 | grep FAIL
+cp /tmp/adapter.bak adapter/adapter.go
+
+# 2. drop an empty response id -> chat_response_without_id_or_model/spans must FAIL
+#    (edit parseCompletionResponse so ID is nil when resp.ID == "")
+```
+
+### Checking the report's claims
+
+```sh
+# "adapter.go imports nothing"
+(cd pkg/genai && go test -run TestAdapterFileImportsNothing ./...)
+
+# "otelc.yaml and hook.go unchanged"; "pkg/runtime and tool/ untouched"  (both expect: empty)
+git diff a8e29a7..HEAD -- $V/otelc.yaml $V/hook.go
+git diff a8e29a7..HEAD --stat -- pkg/runtime tool/
+
+# every module still builds, including the ones this did not touch
+for m in . pkg pkg/runtime pkg/genai \
+  instrumentation/github.com/openai/openai-go{,/v2,/v3,/internal/streaming} \
+  instrumentation/github.com/anthropics/anthropic-sdk-go; do
+  printf "%-62s " "$m"
+  (cd "$m" && go build ./... >/dev/null 2>&1 && go test ./... -count=1 >/dev/null 2>&1) \
+    && echo OK || echo FAIL
+done
 ```
