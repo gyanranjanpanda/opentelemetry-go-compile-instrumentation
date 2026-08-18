@@ -447,3 +447,62 @@ func TestServerStatsHandler_OTELExporterFiltering(t *testing.T) {
 		})
 	}
 }
+
+// TestServerStatsHandler_SkippedRPC_DoesNotTouchCallerSpan is the regression test for the
+// caller-span corruption bug on the server side. When TagRPC opts out of an OTLP export
+// path, HandleRPC must be a complete no-op: it must not stamp gRPC attributes onto, set
+// the status of, or end any span that happens to be active on the caller's context.
+func TestServerStatsHandler_SkippedRPC_DoesNotTouchCallerSpan(t *testing.T) {
+	t.Setenv("OTEL_GO_ENABLED_INSTRUMENTATIONS", "grpc")
+
+	initInstrumentation()
+
+	exporter := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithSyncer(exporter),
+	)
+	oldTP := otel.GetTracerProvider()
+	otel.SetTracerProvider(tp)
+	t.Cleanup(func() {
+		_ = tp.Shutdown(context.Background())
+		otel.SetTracerProvider(oldTP)
+	})
+	tracer = tp.Tracer(instrumentationName, trace.WithInstrumentationVersion(runtime.ModuleVersion()))
+
+	// Simulate the caller starting its own span — e.g. "graceful-shutdown".
+	baseCtx, callerSpan := tp.Tracer("test").Start(t.Context(), "graceful-shutdown")
+
+	// TagRPC skips instrumentation for the OTLP export path and returns ctx unchanged.
+	handler := newServerStatsHandler()
+	skippedCtx := handler.TagRPC(baseCtx, &stats.RPCTagInfo{
+		FullMethodName: "/opentelemetry.proto.collector.trace.v1.TraceService/Export",
+	})
+
+	// The returned context must carry no gRPCContext — the skip sentinel.
+	require.Nil(t, skippedCtx.Value(gRPCContextKey{}), "TagRPC must not attach gRPCContext for OTLP paths")
+
+	// Drive every HandleRPC branch that previously touched the span directly.
+	handler.HandleRPC(skippedCtx, &stats.Begin{BeginTime: time.Now()})
+	handler.HandleRPC(skippedCtx, &stats.OutHeader{})
+	handler.HandleRPC(skippedCtx, &stats.InPayload{Length: 64})
+	handler.HandleRPC(skippedCtx, &stats.OutPayload{Length: 128})
+	handler.HandleRPC(skippedCtx, &stats.End{
+		BeginTime: time.Now().Add(-10 * time.Millisecond),
+		EndTime:   time.Now(),
+	})
+
+	// The caller span must still be recording — HandleRPC must not have ended it.
+	require.True(t, callerSpan.IsRecording(), "HandleRPC must not end the caller's span on a skipped RPC")
+
+	// End it ourselves and check the export is clean.
+	callerSpan.End()
+	spans := exporter.GetSpans()
+	require.Len(t, spans, 1, "only the caller span should be exported")
+	assert.Equal(t, "graceful-shutdown", spans[0].Name, "exported span must be the caller's span")
+
+	// Verify no gRPC status attribute was written onto the caller span.
+	for _, attr := range spans[0].Attributes {
+		assert.NotEqual(t, "rpc.grpc.status_code", string(attr.Key),
+			"HandleRPC must not stamp rpc.grpc.status_code onto the caller's span")
+	}
+}
